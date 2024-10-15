@@ -20,10 +20,42 @@ const QString applicationName("P2P File Transfer Client");
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     createWidgets();
     createLayouts();
+    initializeLogging(); // Initialize logging
 }
 
 MainWindow::~MainWindow() {
     m_peer.leaveNetwork();
+    
+    if (m_logFile.isOpen()) {
+        m_logStream << "===== Log Ended at " << QDateTime::currentDateTime().toString() << " =====\n";
+        m_logFile.close();
+    }
+}
+
+
+void MainWindow::initializeLogging() {
+    QString logFileName = "p2p_analysis.log";
+    m_logFile.setFileName(logFileName);
+
+    if (!m_logFile.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+        QMessageBox::warning(this, tr("Logging Error"),
+                             tr("Cannot open log file for writing: %1").arg(logFileName));
+        return;
+    }
+
+    m_logStream.setDevice(&m_logFile);
+    m_logStream << "===== P2P File Transfer Client Log Started at "
+               << QDateTime::currentDateTime().toString()
+               << " =====\n";
+    m_logStream.flush();
+}
+
+void MainWindow::writeLog(const QString &message) {
+    if (m_logFile.isOpen()) {
+        QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
+        m_logStream << "[" << timestamp << "] " << message << "\n";
+        m_logStream.flush();
+    }
 }
 
 void MainWindow::createWidgets() {
@@ -155,14 +187,27 @@ void MainWindow::downloadFile() {
         std::string filename = item->text().toUtf8().constData();
         try {
             emit downloadStatus(QString::fromStdString(filename), DOWNLOAD_START);
+            QDateTime startTime = QDateTime::currentDateTime();
             m_peer.downloadAvailableFile(filename);
+            QDateTime endTime = QDateTime::currentDateTime();
+            qint64 downloadTime = startTime.msecsTo(endTime); // in milliseconds
+
             emit downloadStatus(QString::fromStdString(filename), DOWNLOAD_SUCCESS);
+
+            // Log the download details
+            writeLog(QString("Downloaded file: %1 | Time: %2 ms")
+                     .arg(QString::fromStdString(filename))
+                     .arg(downloadTime));
         } catch (std::exception& e) {
             std::cerr << "MainWindow::s_downloadAvailableFile(): Download failed. " << e.what() << std::endl;
             emit downloadStatus(QString::fromStdString(filename), DOWNLOAD_FAILURE);
+            writeLog(QString("Failed to download file: %1 | Error: %2")
+                     .arg(QString::fromStdString(filename))
+                     .arg(e.what()));
         }
     }
 }
+
 
 void MainWindow::s_connect() {
     try {
@@ -170,7 +215,7 @@ void MainWindow::s_connect() {
         m_peer.setConnectionManagerPort(m_portBar->text().toUtf8().constData());
         m_peer.joinNetwork();
 
-        m_connectButton->setEnabled(false);     // disable ablity to reconnect
+        m_connectButton->setEnabled(false);     // disable ability to reconnect
         m_addrBar->setEnabled(false);
         m_portBar->setEnabled(false);
 
@@ -182,19 +227,24 @@ void MainWindow::s_connect() {
         refreshAvailableList();
 
         setWindowTitle(windowTitle() + QString(" [%1]").arg(QString::fromStdString(m_peer.getAcceptorPort())));
-        startAcceptorThread();                  // start seperate thread for recieving connections
+        startAcceptorThread();                  // start separate thread for receiving connections
 
+        writeLog(QString("Connected to Connection Manager at %1:%2")
+                 .arg(m_addrBar->text())
+                 .arg(m_portBar->text()));
     } catch(std::exception& e) {
         QMessageBox::information(
             this,
             applicationName,
             QString(tr("Unable to connect to Connection Manager.\n" \
-                    "Please make sure the address and port are valid and that it is running.")));
+                       "Please make sure the address and port are valid and that it is running.")));
 
         m_peer.setConnectionManagerAddress("");
         m_peer.setConnectionManagerPort("");
         m_portBar->clear();
         m_addrBar->clear();
+
+        writeLog("Failed to connect to Connection Manager.");
     }
 }
 
@@ -204,20 +254,23 @@ void MainWindow::s_addShareFile() {
 
     try {
         m_peer.addShareFile(filepath);
+        writeLog(QString("Shared file: %1").arg(QString::fromStdString(filepath)));
     } catch (std::invalid_argument& e) {
         std::cerr << "MainWindow::s_addShareFile(): " << e.what() << std::endl;
         QMessageBox::information(
             this,
             applicationName,
             QString(tr("Unable to add file \"%1\" because it already exists.")).arg(QFileInfo(QString::fromStdString(filepath)).fileName()));
-            return;
+        writeLog(QString("Failed to share file (already exists): %1").arg(QString::fromStdString(filepath)));
+        return;
     } catch (std::exception& e) {
         std::cerr << "MainWindow::s_addShareFile(): " << e.what() << std::endl;
         QMessageBox::information(
             this,
             applicationName,
             QString(tr("Unable to add file \"%1\". \nMake sure you have connected to the Connection Manager.")).arg(QFileInfo(QString::fromStdString(filepath)).fileName()));
-            return;
+        writeLog(QString("Failed to share file: %1").arg(QString::fromStdString(filepath)));
+        return;
     }
     refreshShareList();
 }
@@ -230,13 +283,15 @@ void MainWindow::s_remShareFile() {
 
         try {
             m_peer.remShareFile(filepath);
+            writeLog(QString("Unshared file: %1").arg(QString::fromStdString(filepath)));
         } catch (std::exception& e) {
             std::cerr << "MainWindow:s_remShareFile(): " << e.what() << std::endl;
             QMessageBox::information(
                 this,
                 applicationName,
                 QString(tr("Unable to remove file \"%1\".\nGet rekt.")).arg(QFileInfo(QString::fromStdString(filepath)).fileName()));
-                return;
+            writeLog(QString("Failed to unshare file: %1").arg(QString::fromStdString(filepath)));
+            return;
         }
     }
     refreshShareList();
@@ -249,13 +304,17 @@ void MainWindow::s_downloadAvailableFile() {
 void MainWindow::s_downloadStatus(const QString filename, const int downloadStatus) {
     if (downloadStatus == DOWNLOAD_START) {
         m_downloadResultMessage->setText(QString(tr("Downloading \"%1\".\nYou will be notified once download has completed.")).arg(filename));
+        writeLog(QString("Download started for file: %1").arg(filename));
     } else if (downloadStatus == DOWNLOAD_SUCCESS) {
         m_downloadResultMessage->setText(QString(tr("File \"%1\" has finished downloading.")).arg(filename));
+        writeLog(QString("Download succeeded for file: %1").arg(filename));
     } else {
         m_downloadResultMessage->setText(QString(tr("\"%1\" download failed.")).arg(filename));
+        writeLog(QString("Download failed for file: %1").arg(filename));
     }
     m_downloadResultMessage->show();
 }
+
 
 void MainWindow::s_updateLists() {
     refreshPeerList();

@@ -1,8 +1,12 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include <QMutex>
 #include <QMainWindow>
 #include "peer.h"
+#include <QFile>
+#include <QTextStream>
+#include <QDateTime>
 
 class QListWidget;
 class QLineEdit;
@@ -44,6 +48,16 @@ private:
     QPushButton*    m_connectButton;            // s_connect()
 
     QMessageBox*    m_downloadResultMessage;    // message box indicating whether download succeeded or failed
+    // Logging members
+    QFile m_logFile;
+    QTextStream m_logStream;
+    QMutex m_logMutex;
+
+    // Function to initialize logging
+    void initializeLogging();
+
+    // Function to write log entries
+    void writeLog(const QString &message);
 
     void createWidgets();
     void createLayouts();
