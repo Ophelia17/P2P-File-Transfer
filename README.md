@@ -49,7 +49,9 @@ The application was written in C++. [Boost.Asio](http://www.boost.org/users/down
 1. Run the connection manager executable (`./connectionmanager` on Linux).
 2. Run the client(s).
 
-![Initial](img/ss1.jpg) ![Connected](img/ss2.jpg)
+<img src="img/ss1.jpg" alt="drawing" width="350px"/> <img src="img/ss2.jpg" alt="drawing" width="350px"/> 
+
+
 
 ## Key Features
 
