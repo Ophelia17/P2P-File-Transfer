@@ -44,13 +44,31 @@ The application was written in C++. [Boost.Asio](http://www.boost.org/users/down
 
     Ensure you have a C++ compiler such as g++ or clang.
 
-## Usage
+## Installation
 
-1. Run the connection manager executable (`./connectionmanager` on Linux).
-2. Run the client(s).
+Client
+   Open a terminal and navigate to the root directory of your project.
+
+   Run CMake to generate the build files:
+
+       cmake P2P-Filesharing-Client.pro
+   
+   Compile the project:
+
+       make
+   
+   After building, you should find the executable in the build directory, for each client.
+
+       ./P2P-Filesharing-Client
+
+Connection Manager 
+
+       g++ -std=c++11 connectionmanager.cpp p2pnode.cpp -o connectionmanager -lboost_system
+       
+Run the connection manager executable (`./connectionmanager` on Linux).
+
 
 <img src="img/ss1.jpg" alt="drawing" width="350px"/> <img src="img/ss2.jpg" alt="drawing" width="350px"/> 
-
 
 
 ## Key Features
