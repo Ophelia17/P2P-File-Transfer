@@ -51,7 +51,7 @@ Client
 
    Run CMake to generate the build files:
 
-       cmake P2P-Filesharing-Client.pro
+       qmake P2P-Filesharing-Client.pro
    
    Compile the project:
 
