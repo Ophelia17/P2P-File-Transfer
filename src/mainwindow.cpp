@@ -11,6 +11,7 @@
 #include <QMessageBox>
 #include <QFileDialog>
 #include <boost/thread.hpp>
+#include <iostream>
 
 using boost::asio::ip::tcp;
 

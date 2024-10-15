@@ -4,6 +4,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/filesystem/path.hpp>
 #include <fstream>
+#include <iostream>
 
 using boost::asio::ip::tcp;
 
